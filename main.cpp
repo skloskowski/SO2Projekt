@@ -2,6 +2,7 @@
 #include <thread>
 #include <mutex>
 #include <vector>
+#include <chrono>
 #include <random>
 #include <atomic>
 
@@ -9,97 +10,84 @@ using namespace std;
 
 class DiningPhilosophers {
 private:
-    int numPhilosophers;               // Number of philosophers (and forks)
-    vector<mutex> forks;               // Mutexes for each fork
-    vector<thread> philosophers;       // Threads for each philosopher
-    atomic<int> totalIterations = 0;   // Tracks the total number of iterations performed
-    atomic<int> printedLines = 0;      // Tracks the number of lines printed
-    const int maxPrintedLines = 30;     // Max number of lines that should be printed
-    mutex outputMutex;                 // Mutex to protect output to console
+    int numPhilosophers;
+    vector<mutex> forks;
+    vector<thread> philosophers;
+    atomic<int> totalIterations = 0;
+    int maxIterations = 30;
+    mutex outputMutex;
 
-    // Function to simulate a philosopher
     void philosopher(int id) {
         random_device rd;
         mt19937 gen(rd());
-        uniform_int_distribution<> dist(100, 500);  // Random thinking and eating time
+        uniform_int_distribution<> dist(100, 500);
 
-        while (totalIterations.load() < maxPrintedLines) {
-            totalIterations.fetch_add(1); // Increment the number of iterations
+        while (true) {
+            int currentIterations = totalIterations.load();
+            if (currentIterations >= maxIterations) break;
+            if (totalIterations.fetch_add(1) >= maxIterations) break;
 
-            // Simulate thinking and print the status
-            printStatus(id, "thinking");
-
-            // Simulate hunger and print the status
-            printStatus(id, "hungry");
-
-            // Pick up forks (asymmetric locking to avoid deadlock)
-            lockForks(id);
-
-            // Simulate eating and print the status
-            printStatus(id, "eating");
-
-            // Release forks after eating
-            releaseForks(id);
-
-            // Sleep for a random time between thinking and eating
+            {
+                lock_guard<mutex> lock(outputMutex);
+                if (totalIterations.load() > maxIterations) break;
+                cout << "Philosopher " << id << " is thinking." << endl;
+            }
             this_thread::sleep_for(chrono::milliseconds(dist(gen)));
-        }
-    }
 
-    // Print the philosopher's status (thinking, hungry, or eating)
-    void printStatus(int id, const string& action) {
-        lock_guard<mutex> lock(outputMutex);  // Lock to prevent multiple threads from printing simultaneously
-        if (printedLines.load() < maxPrintedLines) {
-            cout << "Philosopher " << id << " is " << action << "." << endl;
-            printedLines.fetch_add(1);  // Increment the printed line counter
-        }
-    }
+            {
+                lock_guard<mutex> lock(outputMutex);
+                if (totalIterations.load() > maxIterations) break;
+                cout << "Philosopher " << id << " is hungry." << endl;
+            }
 
-    // Lock the forks (asymmetric locking to avoid deadlock)
-    void lockForks(int id) {
-        if (id % 2 == 0) {
-            forks[id].lock();
-            forks[(id + 1) % numPhilosophers].lock();
-        } else {
-            forks[(id + 1) % numPhilosophers].lock();
-            forks[id].lock();
-        }
-    }
+            // Asymmetric locking to prevent deadlock
+            if (id % 2 == 0) {
+                forks[id].lock();
+                forks[(id + 1) % numPhilosophers].lock();
+            } else {
+                forks[(id + 1) % numPhilosophers].lock();
+                forks[id].lock();
+            }
 
-    // Release the forks after eating
-    void releaseForks(int id) {
-        forks[id].unlock();
-        forks[(id + 1) % numPhilosophers].unlock();
+            {
+                lock_guard<mutex> lock(outputMutex);
+                if (totalIterations.load() > maxIterations) break;
+                cout << "Philosopher " << id << " is eating." << endl;
+            }
+            this_thread::sleep_for(chrono::milliseconds(dist(gen)));
+
+            // Put down forks
+            forks[id].unlock();
+            forks[(id + 1) % numPhilosophers].unlock();
+        }
     }
 
 public:
-    // Constructor to initialize the number of philosophers and forks
-    DiningPhilosophers(int num) : numPhilosophers(num), forks(num) {}
+    DiningPhilosophers(int n) : numPhilosophers(n), forks(n) {}
 
-    // Start the philosopher threads
     void start() {
         for (int i = 0; i < numPhilosophers; ++i) {
             philosophers.emplace_back(&DiningPhilosophers::philosopher, this, i);
         }
-
-        // Wait for all threads to finish
         for (auto& p : philosophers) {
             p.join();
         }
     }
 };
 
-
 int main(int argc, char* argv[]) {
-
-    // Check command line arguments for number of philosophers
-    if (argc != 2 || stoi(argv[1]) < 2) {
-        cerr << "Usage: " << argv[0] << " <number_of_philosophers>" << endl;
+    if (argc != 2) {
+        cerr << "Usage: " << argv[0] << " <number_of_philosophers>\n";
         return 1;
     }
 
-    // Start the dining philosophers simulation with the specified number of philosophers
-    DiningPhilosophers dp(stoi(argv[1]));
+    int numPhilosophers = stoi(argv[1]);
+    if (numPhilosophers < 2) {
+        cerr << "Number of philosophers must be at least 2.\n";
+        return 1;
+    }
+
+    DiningPhilosophers dp(numPhilosophers);
     dp.start();
 
     return 0;
