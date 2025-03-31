@@ -14,7 +14,7 @@ private:
     vector<mutex> forks;
     vector<thread> philosophers;
     atomic<int> totalIterations = 0;
-    int maxIterations = 30;
+    const int maxIterations = 10;
     mutex outputMutex;
 
     void philosopher(int id) {
@@ -23,42 +23,48 @@ private:
         uniform_int_distribution<> dist(100, 500);
 
         while (true) {
-            int currentIterations = totalIterations.load();
-            if (currentIterations >= maxIterations) break;
-            if (totalIterations.fetch_add(1) >= maxIterations) break;
+            if (totalIterations.load() >= maxIterations) break;
 
             {
                 lock_guard<mutex> lock(outputMutex);
-                if (totalIterations.load() > maxIterations) break;
                 cout << "Philosopher " << id << " is thinking." << endl;
             }
+
             this_thread::sleep_for(chrono::milliseconds(dist(gen)));
 
             {
                 lock_guard<mutex> lock(outputMutex);
-                if (totalIterations.load() > maxIterations) break;
                 cout << "Philosopher " << id << " is hungry." << endl;
             }
 
-            // Asymmetric locking to prevent deadlock
-            if (id % 2 == 0) {
-                forks[id].lock();
-                forks[(id + 1) % numPhilosophers].lock();
-            } else {
-                forks[(id + 1) % numPhilosophers].lock();
-                forks[id].lock();
+            int leftFork = id;
+            int rightFork = (id + 1) % numPhilosophers;
+
+            if (id % 2 == 0) swap(leftFork, rightFork);
+
+            // Try acquiring forks to avoid deadlock
+            while (true) {
+                if (forks[leftFork].try_lock()) {
+                    if (forks[rightFork].try_lock()) {
+                        break;
+                    } else {
+                        forks[leftFork].unlock();
+                    }
+                }
+                this_thread::sleep_for(chrono::milliseconds(50));
             }
 
             {
                 lock_guard<mutex> lock(outputMutex);
-                if (totalIterations.load() > maxIterations) break;
                 cout << "Philosopher " << id << " is eating." << endl;
             }
+
             this_thread::sleep_for(chrono::milliseconds(dist(gen)));
 
-            // Put down forks
-            forks[id].unlock();
-            forks[(id + 1) % numPhilosophers].unlock();
+            forks[rightFork].unlock();
+            forks[leftFork].unlock();
+
+            if (totalIterations.fetch_add(1) >= maxIterations) break;
         }
     }
 
