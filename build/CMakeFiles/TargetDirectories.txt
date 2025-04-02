@@ -1,0 +1,3 @@
+C:/Users/Szymon/CLionProjects/SO2Projekt/build/CMakeFiles/SO2Projekt.dir
+C:/Users/Szymon/CLionProjects/SO2Projekt/build/CMakeFiles/edit_cache.dir
+C:/Users/Szymon/CLionProjects/SO2Projekt/build/CMakeFiles/rebuild_cache.dir
