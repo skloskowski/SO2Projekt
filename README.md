@@ -30,9 +30,11 @@ Dodatkowo użycie lock_guard<mutex> zapewnia automatyczne zwalnianie mutexa po o
 
 ### Uruchamianie programu
 
-Żeby uruchomić program należy go najpierw skompilować, udostępniony został folder build zbudowany przy użyciu Cmake.
+Żeby uruchomić program należy go najpierw sklonować z repozytorium oraz skompilować, udostępniony został folder build zbudowany przy użyciu Cmake (dostępny do użycia na systemie Windows).
 
 ``` sh
+git clone https://github.com/skloskowski/SO2Projekt
+cd SO2Projekt
 cd build
 ```
 
