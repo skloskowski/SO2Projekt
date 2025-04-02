@@ -27,3 +27,29 @@ Po zakończeniu jedzenia filozof zwalnia oba mutexy, co pozwala innym wątkom na
 Drugim miejscem, w którym rozwiązano problem sekcji krytycznej, jest wypisywanie komunikatów na ekran. Ponieważ std::cout nie jest thread-safe, wielu filozofów mogłoby jednocześnie próbować wyświetlić tekst, powodując jego przeplatanie i utratę czytelności. Aby temu zapobiec, 
 przed każdą operacją wypisywania blokowany jest mutex outputMutex. Dzięki temu tylko jeden filozof w danym momencie ma dostęp do cout, co gwarantuje poprawne wyświetlanie komunikatów.
 Dodatkowo użycie lock_guard<mutex> zapewnia automatyczne zwalnianie mutexa po opuszczeniu sekcji krytycznej, eliminując ryzyko deadlocku wynikającego z zapomnienia o jego odblokowaniu.
+
+### Uruchamianie programu
+
+Żeby uruchomić program należy go najpierw skompilować, udostępniony został folder build zbudowany przy użyciu Cmake.
+
+``` sh
+cd build
+```
+
+W zależności od zainstalownej wersji kompilatora należy wprowadzić jeden z poniższych komend:
+
+```sh
+make
+```
+
+```sh
+mingw32-make
+```
+
+Po weryfikacji, że plik został skompilowany poprawnie należy użyć komendy:
+
+```sh
+.\SO2Projekt <liczba filozofów>
+```
+
+W celu poprawnego działania programu liczba filozofów nie powinna być mniejsza niż 3
